@@ -311,7 +311,7 @@ export default function Home() {
                       }
                     );
                     if (res.data.ok == true) {
-                      toast.success("login successfully!");
+                      toast.success("با موفقیت وارد شدید!");
                       localStorage.setItem("token", res.data.access_token);
                     } else {
                       toast.error("مشکلی رخ داده! مجددا تلاش کنید");
