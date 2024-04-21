@@ -1,112 +1,217 @@
-import Image from "next/image";
+"use client";
+import { useTimer } from "react-timer-hook";
+import OTPInput from "react-otp-input";
+import { Field, Form, Formik } from "formik";
+import { useState } from "react";
+import styles from "./page.module.css";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 export default function Home() {
+  const [formstep, setFormstep] = useState(0);
+  const [phonenum, setphonenum] = useState();
+  const [otp, setOtp] = useState("");
+
+  const expiryTimestamp = new Date();
+  expiryTimestamp.setSeconds(expiryTimestamp.getSeconds() + 120); // 10 minutes timer
+
+  const { seconds, minutes, restart } = useTimer({
+    expiryTimestamp,
+    onExpire: () => {},
+  });
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-gray-100">
+      <div className="w-1/3 mx-auto justify-center bg-gray-300 min-h-96 text-center p-5 rounded shadow-slate-600 shadow-sm">
+        <h2 className="text-3xl">Welcome to website</h2>
+        {formstep == 0 && (
+          <>
+            <div className={`block m-7`}>
+              <div>
+                <div>
+                  <Formik
+                    initialValues={{}}
+                    onSubmit={async (values) => {
+                      setOtp("");
+                      restart(expiryTimestamp);
+                      try {
+                        const res = await axios.post(
+                          `http://192.168.1.110:3000/auth/login`,
+                          {
+                            mobile: values.phoneNumber,
+                            level: "1",
+                            otp_code: null,
+                          }
+                        );
+                        if (res.data.opt_status == 200) {
+                          toast.success("code sended!");
+                          setFormstep(1);
+                        } else {
+                          toast.error(
+                            "some thing went wrong! please try again"
+                          );
+                        }
+                      } catch (error) {
+                        toast.error("some thing went wrong! please try again");
+                      }
+                    }}
+                  >
+                    {({ values, errors, touched }) => (
+                      <Form noValidate>
+                        <div
+                          className={`position-relative d-block`}
+                        >
+                          <label className="block mb-2 text-pretty">
+                            Enter your phone number
+                          </label>
+                          <Field
+                            name="phoneNumber"
+                            id="phone"
+                            pattern="[0-9]*"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            maxLength={11}
+                            placeholder="Phone Number"
+                            onKeyUp={(e) => {
+                              setphonenum(e?.target?.value);
+                            }}
+                            className={"p-2 rounded-sm mb-5"}
+                          />
+                        </div>
+                        <div></div>
+                        <div>
+                          <button
+                            type="submit"
+                            className="bg-stone-600 text-gray-50 p-2 rounded-sm mt-3"
+                          >
+                            get varification code
+                          </button>
+                        </div>
+                      </Form>
+                    )}
+                  </Formik>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+        {formstep === 1 && (
+          <>
+            <h3 className={`text-2xl`}>Enter verification code</h3>
+            <div>
+              <Formik
+                initialValues={{}}
+                onSubmit={async (values) => {
+                  restart(expiryTimestamp);
+                  try {
+                    const res = await axios.post(
+                      `http://192.168.1.110:3000/auth/login`,
+                      {
+                        mobile: phonenum,
+                        level: "2",
+                        otp_code: otp,
+                      }
+                    );
+                    if (res.data.ok == true) {
+                      toast.success("login successfully!");
+                      localStorage.setItem("token", res.data.access_token);
+                    } else {
+                      toast.error("some thing went wrong! please try again");
+                    }
+                  } catch (error) {
+                    toast.error("some thing went wrong! please try again");
+                  }
+                }}
+              >
+                {({ values, errors, touched }) => (
+                  <Form>
+                    <div className="my-6">
+                      {minutes + seconds > 0 ? (
+                        <h6>
+                          remainding time: {minutes}:{seconds}{" "}
+                        </h6>
+                      ) : (
+                        <h6
+                          className={`bg-stone-600 text-gray-50 p-2 rounded-sm mt-3 max-w-[350px] mx-auto`}
+                          onClick={async () => {
+                            setOtp("");
+                            restart(expiryTimestamp);
+                            try {
+                              const res = await axios.post(
+                                `http://192.168.1.110:3000/auth/login`,
+                                {
+                                  mobile: phonenum,
+                                  level: "1",
+                                  otp_code: null,
+                                }
+                              );
+                              if (res.data.opt_status == 200) {
+                                toast.success("code sended!");
+                                setFormstep(1);
+                              } else {
+                                toast.error(
+                                  "some thing went wrong! please try again"
+                                );
+                              }
+                            } catch (error) {
+                              toast.error(
+                                "some thing went wrong! please try again"
+                              );
+                            }
+                          }}
+                        >
+                          {"resend verification code"}
+                        </h6>
+                      )}
+                    </div>
+                    <div className={`justify-center ${styles.inputcontent}`}>
+                      <OTPInput
+                        value={otp}
+                        onChange={setOtp}
+                        numInputs={6}
+                        renderSeparator={<span>-</span>}
+                        renderInput={(props) => (
+                          <input
+                            {...props}
+                            inputMode="numeric"
+                            onKeyDownCapture={(event) => {
+                              if (
+                                !/^[0-9\b]+$/.test(event.key) &&
+                                event.key != "Backspace" &&
+                                event.key != "Delete"
+                              ) {
+                                event.preventDefault();
+                              }
+                            }}
+                          />
+                        )}
+                      />
+                    </div>
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-full sm:before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full sm:after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800 hover:dark:bg-opacity-30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50 text-balance`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+                    {otp.length < 6 ? (
+                      <div>
+                        <button
+                          disabled
+                          className="bg-stone-400 text-gray-50 p-2 rounded-sm mt-3"
+                        >
+                          submit
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <button
+                          type="submit"
+                          className="bg-stone-600 text-gray-50 p-2 rounded-sm mt-3"
+                        >
+                          submit
+                        </button>
+                      </div>
+                    )}
+                  </Form>
+                )}
+              </Formik>
+            </div>
+          </>
+        )}
       </div>
     </main>
   );
